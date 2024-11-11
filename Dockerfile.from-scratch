@@ -1,0 +1,73 @@
+FROM scratch
+
+ADD image-dependencies/alpine/alpine-minirootfs-3.20.0-x86_64.tar.gz /
+
+CMD ["/bin/sh"]
+
+ENV LANG=C.UTF-8
+
+ARG version=17 
+
+RUN { echo '#!/bin/sh'; echo 'set -e'; echo; \
+	echo 'dirname "$(dirname "$(readlink -f "$(which javac || which java)")")"'; \
+	} > /usr/local/bin/docker-java-home && chmod +x /usr/local/bin/docker-java-home
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/jvm/java-17-openjdk/jre/bin:/usr/lib/jvm/java-17-openjdk/bin
+
+ENV JAVA_VERSION=$version
+ENV JAVA_ALPINE_VERSION=$version
+
+RUN set -x && apk add --no-cache openjdk$version && [ "$JAVA_HOME" = $(docker-java-home) ]
+
+ENV CATALINA_HOME=/usr/local/tomcat
+ENV PATH=/usr/local/tomcat/bin:$PATH
+
+WORKDIR /usr/local/tomcat
+
+ENV TOMCAT_NATIVE_LIBDIR=/usr/local/tomcat/native-jni-lib
+ENV LD_LIBRARY_PATH=/usr/local/tomcat/native-jni-lib
+ENV TOMCAT_MAJOR=10
+ENV TOMCAT_VERSION=10.1.31
+ENV TOMCAT_SHA512=0e3d423a843e2d9ba4f28a9f0a2f1073d5a1389557dfda041759f8df968bace63cd6948bd76df2727b5133ddb7c33e05dab43cea1d519ca0b6d519461152cce9
+
+# copy the Tomcat files into docker
+COPY image-dependencies/apache-tomcat/* $CATALINA_HOME/
+
+
+RUN set -eux; apk add --no-cache --virtual .fetch-deps gnupg ca-certificates openssl && apk add --no-cache file && chmod +x /usr/bin/file; \
+	tar -xf $CATALINA_HOME/apache-tomcat-10.1.31.tar.gz --strip-components=1; \ 
+	echo $TOMCAT_SHA512 apache-tomcat-10.1.31.tar.gz | sha512sum -c -; success=; \
+	tar -xf $CATALINA_HOME/apache-tomcat-10.1.31.tar.gz --strip-components=1; \
+	rm bin/*.bat; rm apache-tomcat-10.1.31.tar.gz*; \
+	command -v gpgconf && gpgconf --kill all || :; \
+	nativeBuildDir="$(mktemp -d)"; \
+	tar -xvf bin/tomcat-native.tar.gz -C "$nativeBuildDir" --strip-components=1; \
+	apk add --no-cache --virtual .native-build-deps apr-dev coreutils dpkg-dev dpkg gcc libc-dev \
+	make "openjdk${JAVA_VERSION}" openssl-dev ; \
+	( export CATALINA_HOME="$PWD"; 	cd "$nativeBuildDir/native"; \
+	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
+	./configure --build="$gnuArch" --libdir="$TOMCAT_NATIVE_LIBDIR" --prefix="$CATALINA_HOME" \
+	--with-apr="$(which apr-1-config)" --with-java-home="$(docker-java-home)" --with-ssl=/usr; \
+	make -j "$(nproc)"; make install; ); \
+	rm -rf "$nativeBuildDir"; \
+	rm bin/tomcat-native.tar.gz; \
+	runDeps="$( scanelf --needed --nobanner --format '%n#p' --recursive "$TOMCAT_NATIVE_LIBDIR" | tr ',' '\n' | sort -u | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' )"; \
+	apk add --virtual .tomcat-native-rundeps $runDeps; \
+	apk del .fetch-deps .native-build-deps; \
+	apk add --no-cache bash; \
+	find ./bin/ -name '*.sh' -exec sed -ri 's|^#!/bin/sh$|#!/usr/bin/env bash|' '{}' +; \
+	chmod -R +rX .; chmod 777 logs work
+
+# verify Tomcat Native is working properly
+RUN set -eux; \
+	nativeLines="$(catalina.sh configtest 2>&1)"; \
+	nativeLines="$(echo "$nativeLines" | grep 'Apache Tomcat Native')"; \
+	nativeLines="$(echo "$nativeLines" | sort -u)"; \
+	if ! echo "$nativeLines" | grep -E 'INFO: Loaded( APR based)? Apache Tomcat Native library' >&2; \
+	then echo >&2 "$nativeLines"; \
+	exit 1; \
+	fi
+
+EXPOSE 8080
+
+CMD ["catalina.sh" "run"]
