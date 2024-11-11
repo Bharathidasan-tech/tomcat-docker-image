@@ -16,8 +16,6 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/j
 
 ENV JAVA_VERSION=$version
 ENV JAVA_ALPINE_VERSION=$version
-RUN mkdir -p /usr/bin/file && chmod a+x /usr/bin/file
-
 
 RUN set -x && apk add --no-cache openjdk$version && [ "$JAVA_HOME" = $(docker-java-home) ]
 
@@ -36,7 +34,7 @@ ENV TOMCAT_SHA512=0e3d423a843e2d9ba4f28a9f0a2f1073d5a1389557dfda041759f8df968bac
 COPY image-dependencies/apache-tomcat/* $CATALINA_HOME/
 
 
-RUN set -eux; apk add --no-cache --virtual .fetch-deps gnupg ca-certificates openssl ; \
+RUN set -eux; apk add --no-cache --virtual .fetch-deps gnupg ca-certificates openssl && apk add --no-cache file && chmod +x /usr/bin/file; \
 	tar -xf $CATALINA_HOME/apache-tomcat-10.1.31.tar.gz --strip-components=1; \ 
 	echo $TOMCAT_SHA512 apache-tomcat-10.1.31.tar.gz | sha512sum -c -; success=; \
 	tar -xf $CATALINA_HOME/apache-tomcat-10.1.31.tar.gz --strip-components=1; \
@@ -47,9 +45,9 @@ RUN set -eux; apk add --no-cache --virtual .fetch-deps gnupg ca-certificates ope
 	apk add --no-cache --virtual .native-build-deps apr-dev coreutils dpkg-dev dpkg gcc libc-dev \
 	make "openjdk${JAVA_VERSION}" openssl-dev ; \
 	( export CATALINA_HOME="$PWD"; 	cd "$nativeBuildDir/native"; \
-	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; chmod a+x /usr/bin/file;\
+	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
 	./configure --build="$gnuArch" --libdir="$TOMCAT_NATIVE_LIBDIR" --prefix="$CATALINA_HOME" \
-	--with-apr="$(which apr-1-config)" --with-java-home="$(docker-java-home)" --with-ssl=yes; \
+	--with-apr="$(which apr-1-config)" --with-java-home="$(docker-java-home)" --with-ssl=/usr; \
 	make -j "$(nproc)"; make install; ); \
 	rm -rf "$nativeBuildDir"; \
 	rm bin/tomcat-native.tar.gz; \
