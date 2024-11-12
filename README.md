@@ -1,5 +1,5 @@
 # Tomcat Docker Image
-Apache Tomcat Docker Image form alpine scratch
+Apache Tomcat Docker Image from alpine scratch
 
 OpenJDK17
 Tomcat-10x
