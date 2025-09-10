@@ -1,9 +1,21 @@
-# Tomcat Docker Image
-Apache Tomcat Docker Image form alpine scratch. It's multi docker image.
+# Tomcat Docker Base Image
+Apache Tomcat Docker Image (Alpine + JDK17)
 
-. Tomcat Image - Apache Tomcat 10.1.31
-. Alpine Linux - Alpine Minirootfs 3.20.0-x86_64
-. JDK17
+A lightweight, production-ready Docker image for running Apache Tomcat 10.1.31, built on Alpine Linux Minirootfs (3.20.0-x86_64) with OpenJDK 17.
+
+This image is designed for minimal size, faster startup, and cloud-native deployments.
+
+# Features
+
+Multi-stage build for optimized image size
+
+Apache Tomcat 10.1.31 pre-configured
+
+OpenJDK 17 runtime
+
+Based on Alpine scratch (3.20.0-x86_64)
+
+Minimal and secure footprint
 
 ### Development environment setup
 
@@ -15,4 +27,4 @@ Follow the steps to bring up the development environment in your local and build
 
 
 # Example To build Image
-docker build -t tomcat-base-image:openjdk17 -f Dockerfile.from-scratch .
+docker build -t custom-tomcat-base-image:openjdk17 -f Dockerfile.from-scratch .
