@@ -10,7 +10,7 @@ Apache Tomcat Docker Image form alpine scratch. It's multi docker image.
 Follow the steps to bring up the development environment in your local and build Docker Image.
 
 1) Install Git, Maven and Docker</br>
-2) Clone the Develop branch using "git clone [https://github.com/Bharathidasan-tech/microservices-e-commerce-sample.git](https://github.com/Bharathidasan-tech/tomcat-docker-image/tree/develop)" </br>
+2) Clone the Develop branch using "git clone <this-repo>" </br>
 3) Docker build command "docker build -t <image-name>:<version> -f <Docker-file-name> ."</br>
 
 
